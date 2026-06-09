@@ -10,6 +10,7 @@ from .products import bp as products_bp
 from .users import bp as users_bp
 from .purchases import bp as purchases_bp
 from .facturation import bp as facturation_bp
+from .bucket import bp as bucket_bp
 
 
 def register_routes(app: Flask):
@@ -20,3 +21,4 @@ def register_routes(app: Flask):
     app.register_blueprint(users_bp)
     app.register_blueprint(purchases_bp)
     app.register_blueprint(facturation_bp)
+    app.register_blueprint(bucket_bp)

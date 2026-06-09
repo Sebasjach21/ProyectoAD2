@@ -7,3 +7,4 @@ Flask-Cors==3.0.10
 twilio==9.0.4
 lxml==5.1.0
 reportlab==4.0.9
+zeep==4.2.1
