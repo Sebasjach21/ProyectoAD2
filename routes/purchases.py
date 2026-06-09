@@ -91,7 +91,14 @@ def registrar_compra():
         # Llamada SOAP
         wsdl_url = request.host_url.rstrip("/") + "/facturacion?wsdl"
         try:
-            client = Client(wsdl=wsdl_url)
+            from zeep.transports import Transport
+            import requests
+            
+            # Usar un timeout corto (5s) para evitar que Gunicorn se quede colgado (Deadlock)
+            session = requests.Session()
+            transport = Transport(session=session, timeout=5)
+            
+            client = Client(wsdl=wsdl_url, transport=transport)
             # Pasamos el idCompra, los demás campos el SOAP los ignora/busca de DB
             response = client.service.GenerarFacturaXML(
                 idCompra=str(nueva_compra_id),
