@@ -3,7 +3,6 @@
 from flask import Blueprint, jsonify, request
 from db.connection import get_connection, return_connection
 import psycopg2
-from services.facturacion import generar_y_enviar_factura
 
 bp = Blueprint("purchases", __name__, url_prefix="/compras")
 
@@ -34,11 +33,8 @@ def listar_compras():
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
     finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            return_connection(conn)
-
+        if cursor: cursor.close()
+        if conn: return_connection(conn)
 
 @bp.route("", methods=["POST"])
 def registrar_compra():
@@ -51,11 +47,23 @@ def registrar_compra():
         cantidad = data.get("cantidad")
         total = data.get("total")
 
-        if not usuario_id or not producto_id or not cantidad or total is None:
-            return jsonify({"success": False, "message": "Faltan: usuario_id, producto_id, cantidad, total"}), 400
+        # Validar campos obligatorios
+        if not usuario_id:
+            return jsonify({"success": False, "message": "usuario_id es requerido"}), 400
+        if not producto_id:
+            return jsonify({"success": False, "message": "producto_id es requerido"}), 400
+        if not cantidad:
+            return jsonify({"success": False, "message": "cantidad es requerida"}), 400
+        if total is None:
+            return jsonify({"success": False, "message": "total es requerido"}), 400
 
         conn = get_connection()
         cursor = conn.cursor()
+
+        # Verificar que el usuario existe
+        cursor.execute("SELECT id FROM public.usuarios WHERE id = %s", (usuario_id,))
+        if not cursor.fetchone():
+            return jsonify({"success": False, "message": "Usuario no existe"}), 404
 
         # Verificar stock
         cursor.execute("SELECT stock FROM public.productos WHERE producto_id = %s FOR UPDATE", (producto_id,))
@@ -80,9 +88,6 @@ def registrar_compra():
 
         conn.commit()
 
-        # 📧 DISPARAR FACTURACIÓN (IMPORTANTE)
-        generar_y_enviar_factura(nueva_compra_id, usuario_id, producto_id, cantidad, total)
-
         return jsonify({
             "success": True,
             "message": "Compra registrada con éxito",
@@ -90,12 +95,12 @@ def registrar_compra():
             "total": total
         }), 201
 
-    except psycopg2.errors.ForeignKeyViolation:
-        if conn: conn.rollback()
-        return jsonify({"success": False, "message": "Usuario no existe"}), 400
     except Exception as e:
-        if conn: conn.rollback()
+        if conn:
+            conn.rollback()
         return jsonify({"success": False, "error": str(e)}), 500
     finally:
-        if cursor: cursor.close()
-        if conn: return_connection(conn)
+        if cursor:
+            cursor.close()
+        if conn:
+            return_connection(conn)
